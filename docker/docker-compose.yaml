@@ -1,0 +1,28 @@
+version: '3.1'
+services:
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      # The password for the default postgres user.
+      POSTGRES_PASSWORD: vulcan123456
+      # The name of the default postgres database.
+      POSTGRES_DB: indexer
+      # postgres data directory
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./volumes/db/data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # The redis cache.
+  redis:
+    image: redis:6-alpine
+    restart: always
+    volumes:
+      # Mount the redis data directory to the container.
+      - ./volumes/redis/data:/data
+    # Set the redis password when startup redis server.
+    command: redis-server --requirepass vulcan123456
+    ports:
+      - "6379:6379"

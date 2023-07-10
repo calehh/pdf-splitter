@@ -1,0 +1,8 @@
+lib/
+env/
+bin/
+pdf/
+*.cfg
+.env
+volumes/
+__pycache__/
