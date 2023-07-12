@@ -50,6 +50,10 @@ class Page(db.Model):
     def doc(self):
         return db.session.query(Document).filter(Document.id == self.id).first()
 
+    @property
+    def size(self):
+        return (self.x1-self.x0)*(self.y1-self.y0)
+
 
 class Block(db.Model):
     __tablename__ = "blocks"
@@ -92,6 +96,16 @@ class Block(db.Model):
         image_width = self.x1 - self.x0
         return (page_width/image_width) > rate
 
+    @property
+    def size(self):
+        return (self.x1-self.x0)*(self.y1-self.y0)
+
+    def is_tiny_image(self, rate=776):
+        if self.typee != 'image':
+            return False
+        return (self.page.size/self.size) > rate
+
+    @property
     def relevant(self):
         rel = []
         if self.typee == "text":
@@ -110,7 +124,8 @@ class Block(db.Model):
                 pass
 
             blocks = [block_before, block_after]
-            rel = [b for b in blocks if not None]
+            rel = [b for b in blocks if b is not None]
+            rel = [b for b in rel if not b.is_tiny_image()]
             for b in rel:
                 if b.is_small_image():
                     if self.x0 > b.x1:
