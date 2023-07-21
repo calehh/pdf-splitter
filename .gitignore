@@ -1,8 +1,15 @@
 lib/
 env/
 bin/
-pdf/
 *.cfg
 .env
 volumes/
 __pycache__/
+*.pdf
+*.json
+*.png
+image/
+output/
+*.txt
+*.log
+*.docx
