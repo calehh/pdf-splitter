@@ -195,7 +195,7 @@ class PDFSplitter:
         words = re.findall(pattern, text)
         return len(words)
 
-    def lines_height_sqr(self) -> list[int]:
+    def lines_height(self) -> list[int]:
         line_height_list = []
         total_height = 0
         lines = 0
@@ -207,14 +207,17 @@ class PDFSplitter:
                 block_lines = 1
             lines += block_lines
             height = (block.rect.y1 - block.rect.y0)/block_lines
-            line_height = height*height
+            line_height = height
+            # line_height = height*height
             total_height += height
             line_height_list.append(line_height)
         return line_height_list
 
     def plot_height_sqr(self):
-        word_size_list = self.lines_height_sqr()
-        num_bins = 200
+        title_splitter = self.title_level_splitter()
+        print(f"title level split by {title_splitter}")
+        word_size_list = self.lines_height()
+        num_bins = self.bucket_num
         min_value = min(word_size_list)
         max_value = max(word_size_list)
 
@@ -226,7 +229,7 @@ class PDFSplitter:
         plt.savefig('./plot.png')
 
     def title_level_splitter(self):
-        arr = self.lines_height_sqr()
+        arr = self.lines_height()
         bucket_num = self.bucket_num
         # get bucket
         arr.sort()
@@ -277,7 +280,7 @@ class PDFSplitter:
                 up = False
                 if up_cp:
                     peak_index = i-1
-                    if len(buckets[peak_index]) < (total_cnt/self.bucket_num):
+                    if len(buckets[peak_index]) < (total_cnt/self.bucket_num/5):
                         continue
                     min_split = min_value + (peak_index-1)*bucket_size
                     max_split = min_split + bucket_size*3
@@ -305,6 +308,7 @@ class PDFSplitter:
 
     def split(self) -> list[Chunk]:
         title_splitter = self.title_level_splitter()
+        print(f"title level split by {title_splitter}")
         doc_pdf = fitz.open(path)
 
         base_text = ""
@@ -341,7 +345,7 @@ class PDFSplitter:
             if block_lines < 1:
                 block_lines = 1
             height = (block.rect.y1 - block.rect.y0)/block_lines
-            height = height*height
+            # height = height*height
 
             # check title
             block_level = 0
@@ -388,11 +392,12 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str)
     parser.add_argument("--plot", type=bool, default=False)
     parser.add_argument("--ocr", type=bool, default=False)
+    parser.add_argument("--bucket", type=int, default=100)
     args = parser.parse_args()
     path = args.path
     output = args.output
     splitter = PDFSplitter(path)
-    splitter.bucket_num = 200
+    splitter.bucket_num = args.bucket
     splitter.ocr = args.ocr
     if splitter.ocr:
         splitter.ocr_engine = PaddleOCR(use_angle_cls=True, lang="ch")
