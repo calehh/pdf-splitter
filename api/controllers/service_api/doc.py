@@ -5,13 +5,15 @@ from flask_restful import Resource, marshal_with, fields, marshal
 import fitz
 from models.block import Document, Page, Block, update_object_flush
 import os
-from .error import FileNotExistError
+from .error import FileNotExistError, FileTypeNotPDF
 from extensions.ext_database import db
 import logging
 from extensions.ext_storage import storage
 from pdf2image import convert_from_path
 import tempfile
 from sqlalchemy.exc import IntegrityError
+from .pdf_splitter import PDFSplitter, Chunk
+from werkzeug.datastructures import FileStorage
 
 
 class Check(Resource):
@@ -42,6 +44,41 @@ block_type_code = {
     0: "text",
     1: "image",
 }
+
+chunkField = {
+    'page_header': fields.String,
+    'page_footer': fields.String,
+    'text': fields.String,
+    'titles': fields.Raw,
+    'page_num': fields.Integer,
+}
+
+parsePDFResField = {
+    'chunks': fields.List(fields.Nested(chunkField))
+}
+
+
+class ParsePdf(Resource):
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument('bucket_num', type=int,
+                            default=100, location='form')
+        parser.add_argument('file', type=FileStorage,
+                            location='files', required=True)
+        args = parser.parse_args()
+        file = args['file']
+        if file is None:
+            raise FileNotExistError()
+        doc_type = os.path.splitext(file.filename)[-1]
+        if doc_type != ".pdf":
+            raise FileTypeNotPDF()
+        with tempfile.NamedTemporaryFile(suffix='.pdf', prefix='tmp') as tmp:
+            file.save(tmp)
+            splitter = PDFSplitter(tmp.name)
+            splitter.bucket_num = args['bucket_num']
+            splitter.ocr = False
+            chunks = splitter.split()
+        return marshal({"chunks": chunks}, parsePDFResField)
 
 
 class AddDoc(Resource):
@@ -213,6 +250,7 @@ class BlockInfo(Resource):
 
 
 api.add_resource(Check, '/check')
-api.add_resource(AddDoc, '/addDoc')
-api.add_resource(DocInfo, '/docInfo')
-api.add_resource(BlockInfo, '/blockInfo')
+api.add_resource(AddDoc, '/add_doc')
+api.add_resource(DocInfo, '/doc_info')
+api.add_resource(BlockInfo, '/block_info')
+api.add_resource(ParsePdf, '/parse_pdf')
